@@ -1018,7 +1018,7 @@ impl UnifiedExecProcessManager {
             .create_exec_approval_requirement_for_command(ExecApprovalRequest {
                 command: &request.command,
                 approval_policy: context.turn.approval_policy.value(),
-                permission_profile: context.turn.permission_profile(),
+                permission_profile: request.permission_profile.clone(),
                 // The process cwd may be model-controlled. Policy resolution
                 // stays anchored to the selected turn environment cwd instead.
                 sandbox_cwd: request.sandbox_cwd.as_path(),

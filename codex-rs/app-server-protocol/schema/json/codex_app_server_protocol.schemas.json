@@ -3835,6 +3835,16 @@
         },
         "turnId": {
           "type": "string"
+        },
+        "workspaceMutation": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/v2/WorkspaceMutationApprovalRequest"
+            },
+            {
+              "type": "null"
+            }
+          ]
         }
       },
       "required": [
@@ -9973,6 +9983,16 @@
                 ],
                 "title": "RequestPermissionsGuardianApprovalReviewActionType",
                 "type": "string"
+              },
+              "workspaceMutation": {
+                "anyOf": [
+                  {
+                    "$ref": "#/definitions/v2/WorkspaceMutationApprovalRequest"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
               }
             },
             "required": [
@@ -19485,6 +19505,35 @@
         ],
         "title": "WindowsWorldWritableWarningNotification",
         "type": "object"
+      },
+      "WorkspaceMutationApprovalRequest": {
+        "properties": {
+          "operation": {
+            "$ref": "#/definitions/v2/WorkspaceMutationOperation"
+          },
+          "resultingWorkspaceRoots": {
+            "items": {
+              "$ref": "#/definitions/v2/AbsolutePathBuf"
+            },
+            "type": "array"
+          },
+          "target": {
+            "$ref": "#/definitions/v2/AbsolutePathBuf"
+          }
+        },
+        "required": [
+          "operation",
+          "resultingWorkspaceRoots",
+          "target"
+        ],
+        "type": "object"
+      },
+      "WorkspaceMutationOperation": {
+        "enum": [
+          "setWorkingDirectory",
+          "addWorkspaceRoot"
+        ],
+        "type": "string"
       },
       "WriteStatus": {
         "enum": [
