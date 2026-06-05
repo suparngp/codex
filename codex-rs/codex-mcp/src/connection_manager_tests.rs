@@ -1191,6 +1191,7 @@ async fn no_local_runtime_fails_local_stdio_but_keeps_local_http_server() {
         ToolPluginProvenance::default(),
         /*auth*/ None,
         /*elicitation_reviewer*/ None,
+        /*channel_notification_tx*/ None,
     )
     .await;
 

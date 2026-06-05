@@ -3,6 +3,7 @@ use std::sync::Arc;
 use rmcp::RoleClient;
 use rmcp::model::ClientInfo;
 use rmcp::model::ClientResult;
+use rmcp::model::CustomNotification;
 use rmcp::model::CustomResult;
 use rmcp::model::ElicitationAction;
 use rmcp::model::Meta;
@@ -19,6 +20,7 @@ use crate::logging_client_handler::LoggingClientHandler;
 use crate::rmcp_client::Elicitation;
 use crate::rmcp_client::ElicitationPauseState;
 use crate::rmcp_client::ElicitationResponse;
+use crate::rmcp_client::SendCustomNotification;
 use crate::rmcp_client::SendElicitation;
 
 const MCP_PROGRESS_TOKEN_META_KEY: &str = "progressToken";
@@ -27,6 +29,7 @@ const MCP_PROGRESS_TOKEN_META_KEY: &str = "progressToken";
 pub(crate) struct ElicitationClientService {
     handler: LoggingClientHandler,
     send_elicitation: Arc<SendElicitation>,
+    send_custom_notification: Option<Arc<SendCustomNotification>>,
     pause_state: ElicitationPauseState,
 }
 
@@ -34,15 +37,18 @@ impl ElicitationClientService {
     pub(crate) fn new(
         client_info: ClientInfo,
         send_elicitation: SendElicitation,
+        send_custom_notification: Option<SendCustomNotification>,
         pause_state: ElicitationPauseState,
     ) -> Self {
         let send_elicitation = Arc::new(send_elicitation);
+        let send_custom_notification = send_custom_notification.map(Arc::new);
         Self {
             handler: LoggingClientHandler::new(
                 client_info,
                 clone_send_elicitation(Arc::clone(&send_elicitation)),
             ),
             send_elicitation,
+            send_custom_notification,
             pause_state,
         }
     }
@@ -58,6 +64,15 @@ impl ElicitationClientService {
         (self.send_elicitation)(id, request)
             .await
             .map_err(|err| rmcp::ErrorData::internal_error(err.to_string(), None))
+    }
+
+    async fn handle_custom_notification(&self, notification: CustomNotification) {
+        let Some(send_custom_notification) = self.send_custom_notification.as_ref() else {
+            return;
+        };
+        if let Err(err) = send_custom_notification(notification).await {
+            tracing::warn!("failed to handle MCP custom notification: {err:#}");
+        }
     }
 }
 
@@ -94,6 +109,9 @@ impl Service<RoleClient> for ElicitationClientService {
         notification: ServerNotification,
         context: NotificationContext<RoleClient>,
     ) -> Result<(), rmcp::ErrorData> {
+        if let ServerNotification::CustomNotification(notification) = &notification {
+            self.handle_custom_notification(notification.clone()).await;
+        }
         <LoggingClientHandler as Service<RoleClient>>::handle_notification(
             &self.handler,
             notification,

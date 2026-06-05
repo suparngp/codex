@@ -329,12 +329,14 @@ impl Session {
             Some(turn_environment) => McpRuntimeContext::new(
                 Arc::clone(&self.services.environment_manager),
                 turn_environment.cwd.to_path_buf(),
-            ),
+            )
+            .with_thread_id(self.thread_id.to_string()),
             None => McpRuntimeContext::new(
                 Arc::clone(&self.services.environment_manager),
                 #[allow(deprecated)]
                 turn_context.cwd.to_path_buf(),
-            ),
+            )
+            .with_thread_id(self.thread_id.to_string()),
         };
         {
             let mut guard = self.services.mcp_startup_cancellation_token.lock().await;
@@ -358,6 +360,7 @@ impl Session {
             tool_plugin_provenance,
             auth.as_ref(),
             elicitation_reviewer,
+            Some(self.services.mcp_channel_tx.clone()),
         )
         .await;
         {
