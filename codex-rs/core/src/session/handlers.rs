@@ -89,6 +89,7 @@ pub async fn user_input_or_turn(
     sess: &Arc<Session>,
     sub_id: String,
     op: Op,
+    parent_turn_id: Option<String>,
     client_user_message_id: Option<String>,
 ) {
     user_input_or_turn_inner(
@@ -96,6 +97,7 @@ pub async fn user_input_or_turn(
         sub_id,
         op,
         /*mirror_user_text_to_realtime*/ Some(()),
+        parent_turn_id,
         client_user_message_id,
     )
     .await;
@@ -196,6 +198,7 @@ pub(super) async fn user_input_or_turn_inner(
     sub_id: String,
     op: Op,
     mirror_user_text_to_realtime: Option<()>,
+    parent_turn_id: Option<String>,
     client_user_message_id: Option<String>,
 ) {
     let Op::UserInput {
@@ -218,7 +221,10 @@ pub(super) async fn user_input_or_turn_inner(
     updates.final_output_json_schema = Some(final_output_json_schema);
     updates.environments = environments;
 
-    let Ok(current_context) = sess.new_turn_with_sub_id(sub_id.clone(), updates).await else {
+    let Ok(current_context) = sess
+        .new_turn_with_sub_id_and_parent_turn_id(sub_id.clone(), updates, parent_turn_id)
+        .await
+    else {
         // new_turn_with_sub_id already emits the error event.
         return;
     };
@@ -787,8 +793,14 @@ pub(super) async fn submission_loop(
                     false
                 }
                 Op::UserInput { .. } => {
-                    user_input_or_turn(&sess, sub.id.clone(), sub.op, sub.client_user_message_id)
-                        .await;
+                    user_input_or_turn(
+                        &sess,
+                        sub.id.clone(),
+                        sub.op,
+                        sub.parent_turn_id,
+                        sub.client_user_message_id,
+                    )
+                    .await;
                     false
                 }
                 Op::ThreadSettings { thread_settings } => {

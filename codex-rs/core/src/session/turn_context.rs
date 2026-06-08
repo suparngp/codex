@@ -68,6 +68,7 @@ pub struct TurnContext {
     pub(crate) reasoning_summary: ReasoningSummaryConfig,
     pub(crate) session_source: SessionSource,
     pub(crate) parent_thread_id: Option<ThreadId>,
+    pub(crate) parent_turn_id: Option<String>,
     pub(crate) thread_source: Option<ThreadSource>,
     pub(crate) environments: ResolvedTurnEnvironments,
     /// The session's absolute working directory. All relative paths provided
@@ -239,6 +240,7 @@ impl TurnContext {
             reasoning_summary: self.reasoning_summary,
             session_source: self.session_source.clone(),
             parent_thread_id: self.parent_thread_id,
+            parent_turn_id: self.parent_turn_id.clone(),
             thread_source: self.thread_source,
             environments: self.environments.clone(),
             #[allow(deprecated)]
@@ -470,6 +472,7 @@ impl Session {
         environments: ResolvedTurnEnvironments,
         cwd: AbsolutePathBuf,
         sub_id: String,
+        parent_turn_id: Option<String>,
         skills_outcome: Arc<SkillLoadOutcome>,
     ) -> TurnContext {
         let reasoning_effort = session_configuration.collaboration_mode.reasoning_effort();
@@ -538,6 +541,7 @@ impl Session {
             reasoning_summary,
             session_source,
             parent_thread_id: session_configuration.parent_thread_id,
+            parent_turn_id,
             thread_source: session_configuration.thread_source,
             environments,
             #[allow(deprecated)]
@@ -577,10 +581,21 @@ impl Session {
         }
     }
 
+    #[cfg_attr(not(test), allow(dead_code))]
     pub(crate) async fn new_turn_with_sub_id(
         &self,
         sub_id: String,
         updates: SessionSettingsUpdate,
+    ) -> CodexResult<Arc<TurnContext>> {
+        self.new_turn_with_sub_id_and_parent_turn_id(sub_id, updates, None)
+            .await
+    }
+
+    pub(crate) async fn new_turn_with_sub_id_and_parent_turn_id(
+        &self,
+        sub_id: String,
+        updates: SessionSettingsUpdate,
+        parent_turn_id: Option<String>,
     ) -> CodexResult<Arc<TurnContext>> {
         let notify_config_contributors = !self.services.extensions.config_contributors().is_empty();
         let update_result: CodexResult<_> = {
@@ -672,6 +687,7 @@ impl Session {
                 session_configuration,
                 updates.final_output_json_schema,
                 turn_environments,
+                parent_turn_id,
             )
             .await)
     }
@@ -692,12 +708,14 @@ impl Session {
         session_configuration: SessionConfiguration,
         final_output_json_schema: Option<Option<Value>>,
         turn_environments: ResolvedTurnEnvironments,
+        parent_turn_id: Option<String>,
     ) -> Arc<TurnContext> {
         self.new_turn_context_from_configuration(
             sub_id,
             session_configuration,
             final_output_json_schema,
             turn_environments,
+            parent_turn_id,
             TurnMultiAgentRuntime::ResolveAndStore,
         )
         .await
@@ -714,6 +732,7 @@ impl Session {
             session_configuration,
             /*final_output_json_schema*/ None,
             turn_environments,
+            /*parent_turn_id*/ None,
             TurnMultiAgentRuntime::Preview,
         )
         .await
@@ -725,6 +744,7 @@ impl Session {
         session_configuration: SessionConfiguration,
         final_output_json_schema: Option<Option<Value>>,
         turn_environments: ResolvedTurnEnvironments,
+        parent_turn_id: Option<String>,
         multi_agent_runtime: TurnMultiAgentRuntime,
     ) -> Arc<TurnContext> {
         let primary_turn_environment = turn_environments.primary().cloned();
@@ -800,6 +820,7 @@ impl Session {
             turn_environments,
             cwd,
             sub_id,
+            parent_turn_id,
             skills_outcome,
         );
         turn_context.realtime_active = self.conversation.running_state().await.is_some();
@@ -839,6 +860,15 @@ impl Session {
     }
 
     pub(crate) async fn new_default_turn_with_sub_id(&self, sub_id: String) -> Arc<TurnContext> {
+        self.new_default_turn_with_sub_id_and_parent_turn_id(sub_id, None)
+            .await
+    }
+
+    pub(crate) async fn new_default_turn_with_sub_id_and_parent_turn_id(
+        &self,
+        sub_id: String,
+        parent_turn_id: Option<String>,
+    ) -> Arc<TurnContext> {
         let (session_configuration, turn_environments) =
             self.default_turn_configuration_and_environments().await;
         self.new_turn_from_configuration(
@@ -846,6 +876,7 @@ impl Session {
             session_configuration,
             /*final_output_json_schema*/ None,
             turn_environments,
+            parent_turn_id,
         )
         .await
     }
