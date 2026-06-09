@@ -16677,6 +16677,12 @@
           {
             "properties": {
               "arguments": true,
+              "connectorId": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
               "durationMs": {
                 "description": "The duration of the MCP tool call in milliseconds.",
                 "format": "int64",
@@ -16697,6 +16703,12 @@
               },
               "id": {
                 "type": "string"
+              },
+              "mcpAppInvokedResourceUri": {
+                "type": [
+                  "string",
+                  "null"
+                ]
               },
               "mcpAppResourceUri": {
                 "type": [
