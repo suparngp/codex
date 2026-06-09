@@ -72,6 +72,7 @@ use codex_core::config::Config;
 use codex_exec_server::EnvironmentManager;
 use codex_feedback::CodexFeedback;
 use codex_goal_extension::GoalService;
+use codex_home::CodexHomeUserInstructionsProvider;
 use codex_login::AuthManager;
 use codex_login::auth::ExternalAuth;
 use codex_login::auth::ExternalAuthRefreshContext;
@@ -338,6 +339,9 @@ impl MessageProcessor {
                         executor_skill_provider: Arc::clone(&executor_skill_provider),
                     },
                 ),
+                Arc::new(CodexHomeUserInstructionsProvider::new(
+                    config.codex_home.clone(),
+                )),
                 Some(analytics_events_client.clone()),
                 Arc::clone(&thread_store),
                 state_db.clone(),
