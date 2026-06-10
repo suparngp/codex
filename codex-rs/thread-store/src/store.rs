@@ -1,6 +1,7 @@
 use async_trait::async_trait;
 use codex_protocol::ThreadId;
 use std::any::Any;
+use std::sync::Arc;
 
 use crate::AppendThreadItemsParams;
 use crate::ArchiveThreadParams;
@@ -22,12 +23,23 @@ use crate::ThreadStoreError;
 use crate::ThreadStoreResult;
 use crate::TurnPage;
 use crate::UpdateThreadMetadataParams;
+use crate::live_thread::LiveHistoryRecorder;
+use crate::live_thread::noop_live_history_recorder;
 
 /// Storage-neutral thread persistence boundary.
 #[async_trait]
 pub trait ThreadStore: Any + Send + Sync {
     /// Return this store as [`Any`] for implementation-owned escape hatches.
     fn as_any(&self) -> &dyn Any;
+
+    /// Returns the live-history recorder that should observe append-time rollout items for this
+    /// thread.
+    ///
+    /// Most stores do not maintain an app-server read model and should use the no-op default.
+    /// Implementations with a coupled read model can override this to install their projector.
+    fn live_history_recorder(&self, _thread_id: ThreadId) -> Arc<dyn LiveHistoryRecorder> {
+        noop_live_history_recorder()
+    }
 
     /// Creates a new live thread.
     async fn create_thread(&self, params: CreateThreadParams) -> ThreadStoreResult<()>;
