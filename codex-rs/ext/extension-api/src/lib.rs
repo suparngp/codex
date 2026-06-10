@@ -2,7 +2,7 @@ mod capabilities;
 mod contributors;
 mod registry;
 mod state;
-mod tool_policy;
+mod tool_unavailability;
 
 pub use capabilities::AgentSpawnFuture;
 pub use capabilities::AgentSpawner;
@@ -63,4 +63,4 @@ pub use registry::ExtensionRegistryBuilder;
 pub use registry::empty_extension_registry;
 pub use state::ExtensionData;
 pub use state::ExtensionDataInit;
-pub use tool_policy::RequestUserInputSuppression;
+pub use tool_unavailability::ToolUnavailability;

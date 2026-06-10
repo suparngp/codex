@@ -11,7 +11,7 @@ use crate::tools::handlers::request_user_input_spec::request_user_input_tool_des
 use crate::tools::handlers::request_user_input_spec::request_user_input_unavailable_message;
 use crate::tools::registry::CoreToolRuntime;
 use crate::tools::registry::ToolExecutor;
-use codex_extension_api::RequestUserInputSuppression;
+use codex_extension_api::ToolUnavailability;
 use codex_protocol::config_types::ModeKind;
 use codex_protocol::request_user_input::RequestUserInputArgs;
 use codex_tools::ToolName;
@@ -52,21 +52,14 @@ impl ToolExecutor<ToolInvocation> for RequestUserInputHandler {
             }
         };
 
-        if turn.session_source.is_non_root_agent() {
-            return Err(FunctionCallError::RespondToModel(
-                "request_user_input can only be used by the root thread".to_string(),
-            ));
-        }
-
-        if let Some(suppression) = turn.extension_data.get::<RequestUserInputSuppression>() {
-            return Err(FunctionCallError::RespondToModel(
-                suppression.unavailable_message().to_string(),
-            ));
-        }
-
-        let mode = session.collaboration_mode().await.mode;
-        if let Some(message) = request_user_input_unavailable_message(mode, &self.available_modes) {
-            return Err(FunctionCallError::RespondToModel(message));
+        if let Some(unavailability_reason) = request_user_input_unavailability_reason_for_turn(
+            session.as_ref(),
+            turn.as_ref(),
+            &self.available_modes,
+        )
+        .await
+        {
+            return Err(FunctionCallError::RespondToModel(unavailability_reason));
         }
 
         let args: RequestUserInputArgs = parse_arguments(&arguments)?;
@@ -95,6 +88,29 @@ impl ToolExecutor<ToolInvocation> for RequestUserInputHandler {
 }
 
 impl CoreToolRuntime for RequestUserInputHandler {}
+
+async fn request_user_input_unavailability_reason_for_turn(
+    session: &crate::session::session::Session,
+    turn: &crate::session::turn_context::TurnContext,
+    available_modes: &[ModeKind],
+) -> Option<String> {
+    if turn.session_source.is_non_root_agent() {
+        return Some("request_user_input can only be used by the root thread".to_string());
+    }
+
+    if let Some(unavailability_reason) =
+        turn.extension_data
+            .get::<ToolUnavailability>()
+            .and_then(|unavailability| {
+                unavailability.unavailability_reason(&ToolName::plain(REQUEST_USER_INPUT_TOOL_NAME))
+            })
+    {
+        return Some(unavailability_reason);
+    }
+
+    let mode = session.collaboration_mode().await.mode;
+    request_user_input_unavailable_message(mode, available_modes)
+}
 
 #[cfg(test)]
 #[path = "request_user_input_tests.rs"]

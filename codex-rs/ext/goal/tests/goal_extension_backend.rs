@@ -9,7 +9,6 @@ use codex_extension_api::ExtensionEventSink;
 use codex_extension_api::ExtensionRegistryBuilder;
 use codex_extension_api::FunctionCallError;
 use codex_extension_api::NoopTurnItemEmitter;
-use codex_extension_api::RequestUserInputSuppression;
 use codex_extension_api::ThreadResumeInput;
 use codex_extension_api::ThreadStartInput;
 use codex_extension_api::ThreadStopInput;
@@ -18,7 +17,9 @@ use codex_extension_api::ToolCallOutcome;
 use codex_extension_api::ToolCallSource;
 use codex_extension_api::ToolExecutor;
 use codex_extension_api::ToolFinishInput;
+use codex_extension_api::ToolName;
 use codex_extension_api::ToolPayload;
+use codex_extension_api::ToolUnavailability;
 use codex_extension_api::TurnErrorInput;
 use codex_extension_api::TurnStartInput;
 use codex_extension_api::TurnStopInput;
@@ -717,7 +718,7 @@ async fn usage_limit_plan_turn_does_not_stop_goal() -> anyhow::Result<()> {
 }
 
 #[tokio::test]
-async fn request_user_input_is_suppressed_for_active_default_goal_turn() -> anyhow::Result<()> {
+async fn request_user_input_is_unavailable_for_active_default_goal_turn() -> anyhow::Result<()> {
     let runtime = test_runtime().await?;
     let thread_id = test_thread_id()?;
     seed_thread_metadata(runtime.as_ref(), thread_id).await?;
@@ -736,10 +737,11 @@ async fn request_user_input_is_suppressed_for_active_default_goal_turn() -> anyh
         .start_turn_with_mode("turn-default", ModeKind::Default, &TokenUsage::default())
         .await;
     assert_eq!(
-        Some(RequestUserInputSuppression::ActiveDefaultModeGoal),
-        default_turn_store
-            .get::<RequestUserInputSuppression>()
-            .map(|suppression| *suppression)
+        Some(
+            "request_user_input is unavailable while the current Default mode turn is working on an active goal"
+                .to_string()
+        ),
+        request_user_input_unavailable_message(&default_turn_store)
     );
 
     let plan_turn_store = harness
@@ -747,16 +749,13 @@ async fn request_user_input_is_suppressed_for_active_default_goal_turn() -> anyh
         .await;
     assert_eq!(
         None,
-        plan_turn_store
-            .get::<RequestUserInputSuppression>()
-            .map(|suppression| *suppression)
+        request_user_input_unavailable_message(&plan_turn_store)
     );
     Ok(())
 }
 
 #[tokio::test]
-async fn request_user_input_is_not_suppressed_for_inactive_default_goal_turns() -> anyhow::Result<()>
-{
+async fn request_user_input_is_available_for_inactive_default_goal_turns() -> anyhow::Result<()> {
     let runtime = test_runtime().await?;
     let thread_id = test_thread_id()?;
     seed_thread_metadata(runtime.as_ref(), thread_id).await?;
@@ -784,10 +783,8 @@ async fn request_user_input_is_not_suppressed_for_inactive_default_goal_turns() 
             .await;
         assert_eq!(
             None,
-            turn_store
-                .get::<RequestUserInputSuppression>()
-                .map(|suppression| *suppression),
-            "status {status:?} should not suppress request_user_input"
+            request_user_input_unavailable_message(&turn_store),
+            "status {status:?} should not make request_user_input unavailable"
         );
     }
     Ok(())
@@ -1411,6 +1408,12 @@ fn tool_by_name<'a>(
         .iter()
         .find(|tool| tool.tool_name().namespace.is_none() && tool.tool_name().name == name)
         .unwrap_or_else(|| panic!("missing tool {name}"))
+}
+
+fn request_user_input_unavailable_message(turn_store: &ExtensionData) -> Option<String> {
+    turn_store
+        .get::<ToolUnavailability>()?
+        .unavailability_reason(&ToolName::plain("request_user_input"))
 }
 
 fn tool_call(tool_name: &str, call_id: &str, arguments: serde_json::Value) -> ToolCall {

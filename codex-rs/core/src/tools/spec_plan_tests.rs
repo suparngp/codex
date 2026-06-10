@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
-use codex_extension_api::RequestUserInputSuppression;
+use codex_extension_api::ToolUnavailability;
 use codex_features::Feature;
 use codex_login::AuthManager;
 use codex_login::CodexAuth;
@@ -34,6 +34,7 @@ use serde_json::json;
 use crate::session::tests::make_session_and_context;
 use crate::session::turn_context::TurnContext;
 use crate::tools::handlers::multi_agents_spec::MULTI_AGENT_V1_NAMESPACE;
+use crate::tools::handlers::request_user_input_spec::REQUEST_USER_INPUT_TOOL_NAME;
 use crate::tools::router::ToolRouter;
 use crate::tools::router::ToolRouterParams;
 
@@ -449,14 +450,18 @@ async fn request_user_input_tool_respects_experimental_config_gate() {
 }
 
 #[tokio::test]
-async fn request_user_input_tool_respects_turn_suppression() {
-    let suppressed = probe(|turn| {
+async fn request_user_input_tool_stays_registered_when_unavailable_for_turn() {
+    let unavailable = probe(|turn| {
         turn.extension_data
-            .insert(RequestUserInputSuppression::ActiveDefaultModeGoal);
+            .get_or_init(ToolUnavailability::default)
+            .mark_unavailable(
+                ToolName::plain(REQUEST_USER_INPUT_TOOL_NAME),
+                "request_user_input unavailable for test",
+            );
     })
     .await;
-    suppressed.assert_visible_lacks(&["request_user_input"]);
-    suppressed.assert_registered_lacks(&["request_user_input"]);
+    unavailable.assert_visible_contains(&["request_user_input"]);
+    unavailable.assert_registered_contains(&["request_user_input"]);
 }
 
 #[tokio::test]
