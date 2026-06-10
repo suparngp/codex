@@ -484,7 +484,7 @@ async fn file_system_methods_cover_surface_area(use_remote: bool) -> Result<()> 
 
     file_system
         .remove(
-            &absolute_path(copied_dir.clone()),
+            &PathUri::from_abs_path(&absolute_path(copied_dir.clone()))?,
             RemoveOptions {
                 recursive: true,
                 force: true,
@@ -991,7 +991,7 @@ async fn file_system_remove_removes_symlink_not_target(use_remote: bool) -> Resu
     let sandbox = workspace_write_sandbox(allowed_dir);
     file_system
         .remove(
-            &absolute_path(symlink_path.clone()),
+            &PathUri::from_abs_path(&absolute_path(symlink_path.clone()))?,
             RemoveOptions {
                 recursive: false,
                 force: false,
@@ -1064,7 +1064,7 @@ async fn file_system_remove_rejects_symlink_escape(use_remote: bool) -> Result<(
     let sandbox = workspace_write_sandbox(allowed_dir);
     let error = match file_system
         .remove(
-            &absolute_path(requested_path.clone()),
+            &PathUri::from_abs_path(&absolute_path(requested_path.clone()))?,
             RemoveOptions {
                 recursive: false,
                 force: false,
