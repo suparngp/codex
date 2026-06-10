@@ -389,16 +389,16 @@ async fn file_system_methods_cover_surface_area(use_remote: bool) -> Result<()> 
     );
     let canonical_nested = file_system
         .canonicalize(
-            &absolute_path(source_link.join("nested").join("note.txt")),
+            &PathUri::from_abs_path(&absolute_path(source_link.join("nested").join("note.txt")))?,
             /*sandbox*/ None,
         )
         .await
         .with_context(|| format!("mode={use_remote}"))?;
     assert_eq!(
         canonical_nested,
-        absolute_path(std::fs::canonicalize(
+        PathUri::from_abs_path(&absolute_path(std::fs::canonicalize(
             source_dir.join("nested").join("note.txt")
-        )?)
+        )?))?
     );
 
     let nested_file_contents = file_system
@@ -581,12 +581,15 @@ async fn file_system_sandboxed_canonicalize_allows_readable_root(use_remote: boo
     let sandbox = read_only_sandbox(allowed_dir);
 
     let canonical_path = file_system
-        .canonicalize(&absolute_path(file_path.clone()), Some(&sandbox))
+        .canonicalize(
+            &PathUri::from_abs_path(&absolute_path(file_path.clone()))?,
+            Some(&sandbox),
+        )
         .await
         .with_context(|| format!("mode={use_remote}"))?;
     assert_eq!(
         canonical_path,
-        absolute_path(std::fs::canonicalize(file_path)?)
+        PathUri::from_abs_path(&absolute_path(std::fs::canonicalize(file_path)?))?
     );
 
     Ok(())
