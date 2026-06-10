@@ -459,7 +459,10 @@ async fn file_system_methods_cover_surface_area(use_remote: bool) -> Result<()> 
     )?;
 
     let mut entries = file_system
-        .read_directory(&absolute_path(source_dir), /*sandbox*/ None)
+        .read_directory(
+            &PathUri::from_abs_path(&absolute_path(source_dir))?,
+            /*sandbox*/ None,
+        )
         .await
         .with_context(|| format!("mode={use_remote}"))?;
     entries.sort_by(|left, right| left.file_name.cmp(&right.file_name));
@@ -919,7 +922,10 @@ async fn file_system_read_directory_rejects_symlink_escape(use_remote: bool) -> 
     let requested_path = allowed_dir.join("link");
     let sandbox = read_only_sandbox(allowed_dir);
     let error = match file_system
-        .read_directory(&absolute_path(requested_path.clone()), Some(&sandbox))
+        .read_directory(
+            &PathUri::from_abs_path(&absolute_path(requested_path.clone()))?,
+            Some(&sandbox),
+        )
         .await
     {
         Ok(_) => anyhow::bail!("read_directory should be blocked"),
