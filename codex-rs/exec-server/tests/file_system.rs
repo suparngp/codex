@@ -430,8 +430,8 @@ async fn file_system_methods_cover_surface_area(use_remote: bool) -> Result<()> 
 
     file_system
         .copy(
-            &absolute_path(nested_file),
-            &absolute_path(copied_file.clone()),
+            &PathUri::from_abs_path(&absolute_path(nested_file))?,
+            &PathUri::from_abs_path(&absolute_path(copied_file.clone()))?,
             CopyOptions { recursive: false },
             /*sandbox*/ None,
         )
@@ -441,8 +441,8 @@ async fn file_system_methods_cover_surface_area(use_remote: bool) -> Result<()> 
 
     file_system
         .copy(
-            &absolute_path(source_dir.clone()),
-            &absolute_path(copied_dir.clone()),
+            &PathUri::from_abs_path(&absolute_path(source_dir.clone()))?,
+            &PathUri::from_abs_path(&absolute_path(copied_dir.clone()))?,
             CopyOptions { recursive: true },
             /*sandbox*/ None,
         )
@@ -542,8 +542,8 @@ async fn file_system_copy_rejects_directory_without_recursive(use_remote: bool) 
 
     let error = file_system
         .copy(
-            &absolute_path(source_dir),
-            &absolute_path(tmp.path().join("dest")),
+            &PathUri::from_abs_path(&absolute_path(source_dir))?,
+            &PathUri::from_abs_path(&absolute_path(tmp.path().join("dest")))?,
             CopyOptions { recursive: false },
             /*sandbox*/ None,
         )
@@ -955,8 +955,8 @@ async fn file_system_copy_rejects_symlink_escape_destination(use_remote: bool) -
     let sandbox = workspace_write_sandbox(allowed_dir.clone());
     let error = match file_system
         .copy(
-            &absolute_path(allowed_dir.join("source.txt")),
-            &absolute_path(requested_destination.clone()),
+            &PathUri::from_abs_path(&absolute_path(allowed_dir.join("source.txt")))?,
+            &PathUri::from_abs_path(&absolute_path(requested_destination.clone()))?,
             CopyOptions { recursive: false },
             Some(&sandbox),
         )
@@ -1029,8 +1029,8 @@ async fn file_system_copy_preserves_symlink_source(use_remote: bool) -> Result<(
     let sandbox = workspace_write_sandbox(allowed_dir.clone());
     file_system
         .copy(
-            &absolute_path(source_symlink),
-            &absolute_path(copied_symlink.clone()),
+            &PathUri::from_abs_path(&absolute_path(source_symlink))?,
+            &PathUri::from_abs_path(&absolute_path(copied_symlink.clone()))?,
             CopyOptions { recursive: false },
             Some(&sandbox),
         )
@@ -1103,8 +1103,8 @@ async fn file_system_copy_rejects_symlink_escape_source(use_remote: bool) -> Res
     let sandbox = workspace_write_sandbox(allowed_dir);
     let error = match file_system
         .copy(
-            &absolute_path(requested_source.clone()),
-            &absolute_path(requested_destination.clone()),
+            &PathUri::from_abs_path(&absolute_path(requested_source.clone()))?,
+            &PathUri::from_abs_path(&absolute_path(requested_destination.clone()))?,
             CopyOptions { recursive: false },
             Some(&sandbox),
         )
@@ -1134,8 +1134,8 @@ async fn file_system_copy_rejects_copying_directory_into_descendant(
 
     let error = file_system
         .copy(
-            &absolute_path(source_dir.clone()),
-            &absolute_path(source_dir.join("nested").join("copy")),
+            &PathUri::from_abs_path(&absolute_path(source_dir.clone()))?,
+            &PathUri::from_abs_path(&absolute_path(source_dir.join("nested").join("copy")))?,
             CopyOptions { recursive: true },
             /*sandbox*/ None,
         )
@@ -1169,8 +1169,8 @@ async fn file_system_copy_preserves_symlinks_in_recursive_copy(use_remote: bool)
 
     file_system
         .copy(
-            &absolute_path(source_dir),
-            &absolute_path(copied_dir.clone()),
+            &PathUri::from_abs_path(&absolute_path(source_dir))?,
+            &PathUri::from_abs_path(&absolute_path(copied_dir.clone()))?,
             CopyOptions { recursive: true },
             /*sandbox*/ None,
         )
@@ -1215,8 +1215,8 @@ async fn file_system_copy_ignores_unknown_special_files_in_recursive_copy(
 
     file_system
         .copy(
-            &absolute_path(source_dir),
-            &absolute_path(copied_dir.clone()),
+            &PathUri::from_abs_path(&absolute_path(source_dir))?,
+            &PathUri::from_abs_path(&absolute_path(copied_dir.clone()))?,
             CopyOptions { recursive: true },
             /*sandbox*/ None,
         )
@@ -1252,8 +1252,8 @@ async fn file_system_copy_rejects_standalone_fifo_source(use_remote: bool) -> Re
 
     let error = file_system
         .copy(
-            &absolute_path(fifo_path),
-            &absolute_path(tmp.path().join("copied")),
+            &PathUri::from_abs_path(&absolute_path(fifo_path))?,
+            &PathUri::from_abs_path(&absolute_path(tmp.path().join("copied")))?,
             CopyOptions { recursive: false },
             /*sandbox*/ None,
         )
