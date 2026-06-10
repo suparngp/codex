@@ -260,7 +260,7 @@ async fn sandboxed_file_system_helper_finds_bwrap_on_preserved_path() -> Result<
 
     file_system
         .write_file(
-            &absolute_path(file_path.clone()),
+            &PathUri::from_abs_path(&absolute_path(file_path.clone()))?,
             b"written through fs helper".to_vec(),
             Some(&sandbox),
         )
@@ -351,7 +351,7 @@ async fn file_system_methods_cover_surface_area(use_remote: bool) -> Result<()> 
 
     file_system
         .write_file(
-            &absolute_path(nested_file.clone()),
+            &PathUri::from_abs_path(&absolute_path(nested_file.clone()))?,
             b"hello from trait".to_vec(),
             /*sandbox*/ None,
         )
@@ -359,7 +359,7 @@ async fn file_system_methods_cover_surface_area(use_remote: bool) -> Result<()> 
         .with_context(|| format!("mode={use_remote}"))?;
     file_system
         .write_file(
-            &absolute_path(source_file.clone()),
+            &PathUri::from_abs_path(&absolute_path(source_file.clone()))?,
             b"hello from source root".to_vec(),
             /*sandbox*/ None,
         )
@@ -498,7 +498,7 @@ async fn file_system_write_file_reports_missing_parent(use_remote: bool) -> Resu
 
     let error = match file_system
         .write_file(
-            &absolute_path(missing_parent_path.clone()),
+            &PathUri::from_abs_path(&absolute_path(missing_parent_path.clone()))?,
             b"hello from trait".to_vec(),
             /*sandbox*/ None,
         )
@@ -617,7 +617,7 @@ async fn file_system_sandboxed_write_rejects_unwritable_path(use_remote: bool) -
     let sandbox = read_only_sandbox(tmp.path().to_path_buf());
     let error = match file_system
         .write_file(
-            &absolute_path(blocked_path.clone()),
+            &PathUri::from_abs_path(&absolute_path(blocked_path.clone()))?,
             b"nope".to_vec(),
             Some(&sandbox),
         )
@@ -651,7 +651,7 @@ async fn file_system_sandboxed_write_allows_explicit_alias_roots(use_remote: boo
 
     file_system
         .write_file(
-            &absolute_path(file_path.clone()),
+            &PathUri::from_abs_path(&absolute_path(file_path.clone()))?,
             b"created".to_vec(),
             Some(&sandbox),
         )
@@ -700,7 +700,7 @@ async fn file_system_sandboxed_write_allows_additional_write_root(use_remote: bo
 
     file_system
         .write_file(
-            &absolute_path(file_path.clone()),
+            &PathUri::from_abs_path(&absolute_path(file_path.clone()))?,
             b"created".to_vec(),
             Some(&sandbox),
         )
@@ -797,7 +797,7 @@ async fn file_system_sandboxed_write_rejects_symlink_escape(use_remote: bool) ->
     let sandbox = workspace_write_sandbox(allowed_dir);
     let error = match file_system
         .write_file(
-            &absolute_path(requested_path.clone()),
+            &PathUri::from_abs_path(&absolute_path(requested_path.clone()))?,
             b"nope".to_vec(),
             Some(&sandbox),
         )
@@ -833,7 +833,7 @@ async fn file_system_sandboxed_write_preserves_existing_hard_link(use_remote: bo
     let sandbox = workspace_write_sandbox(allowed_dir);
     file_system
         .write_file(
-            &absolute_path(hard_link.clone()),
+            &PathUri::from_abs_path(&absolute_path(hard_link.clone()))?,
             b"updated through existing hard link\n".to_vec(),
             Some(&sandbox),
         )
