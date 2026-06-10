@@ -342,7 +342,7 @@ async fn file_system_methods_cover_surface_area(use_remote: bool) -> Result<()> 
 
     file_system
         .create_directory(
-            &absolute_path(nested_dir.clone()),
+            &PathUri::from_abs_path(&absolute_path(nested_dir.clone()))?,
             CreateDirectoryOptions { recursive: true },
             /*sandbox*/ None,
         )
@@ -877,7 +877,7 @@ async fn file_system_create_directory_rejects_symlink_escape(use_remote: bool) -
     let sandbox = workspace_write_sandbox(allowed_dir);
     let error = match file_system
         .create_directory(
-            &absolute_path(requested_path.clone()),
+            &PathUri::from_abs_path(&absolute_path(requested_path.clone()))?,
             CreateDirectoryOptions { recursive: false },
             Some(&sandbox),
         )
