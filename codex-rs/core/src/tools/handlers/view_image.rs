@@ -25,6 +25,7 @@ use crate::tools::registry::CoreToolRuntime;
 use crate::tools::registry::ToolExecutor;
 use codex_tools::ToolName;
 use codex_tools::ToolSpec;
+use codex_utils_path_uri::PathUri;
 
 pub struct ViewImageHandler {
     options: ViewImageToolOptions,
@@ -139,6 +140,12 @@ impl ToolExecutor<ToolInvocation> for ViewImageHandler {
         let abs_path = cwd.join(path);
         let sandbox = turn.file_system_sandbox_context(/*additional_permissions*/ None, &cwd);
         let fs = turn_environment.environment.get_filesystem();
+        let path_uri = PathUri::from_abs_path(&abs_path).map_err(|error| {
+            FunctionCallError::RespondToModel(format!(
+                "unable to locate image at `{}`: {error}",
+                abs_path.display()
+            ))
+        })?;
 
         let metadata = fs
             .get_metadata(&abs_path, Some(&sandbox))
@@ -157,7 +164,7 @@ impl ToolExecutor<ToolInvocation> for ViewImageHandler {
             )));
         }
         let file_bytes = fs
-            .read_file(&abs_path, Some(&sandbox))
+            .read_file(&path_uri, Some(&sandbox))
             .await
             .map_err(|error| {
                 FunctionCallError::RespondToModel(format!(

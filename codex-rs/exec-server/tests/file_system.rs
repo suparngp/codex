@@ -402,13 +402,19 @@ async fn file_system_methods_cover_surface_area(use_remote: bool) -> Result<()> 
     );
 
     let nested_file_contents = file_system
-        .read_file(&absolute_path(nested_file.clone()), /*sandbox*/ None)
+        .read_file(
+            &PathUri::from_abs_path(&absolute_path(nested_file.clone()))?,
+            /*sandbox*/ None,
+        )
         .await
         .with_context(|| format!("mode={use_remote}"))?;
     assert_eq!(nested_file_contents, b"hello from trait");
 
     let nested_file_text = file_system
-        .read_file_text(&absolute_path(nested_file.clone()), /*sandbox*/ None)
+        .read_file_text(
+            &PathUri::from_abs_path(&absolute_path(nested_file.clone()))?,
+            /*sandbox*/ None,
+        )
         .await
         .with_context(|| format!("mode={use_remote}"))?;
     assert_eq!(nested_file_text, "hello from trait");
@@ -558,7 +564,10 @@ async fn file_system_sandboxed_read_allows_readable_root(use_remote: bool) -> Re
     let sandbox = read_only_sandbox(allowed_dir);
 
     let contents = file_system
-        .read_file(&absolute_path(file_path), Some(&sandbox))
+        .read_file(
+            &PathUri::from_abs_path(&absolute_path(file_path))?,
+            Some(&sandbox),
+        )
         .await
         .with_context(|| format!("mode={use_remote}"))?;
     assert_eq!(contents, b"sandboxed hello");
@@ -720,7 +729,10 @@ async fn file_system_sandboxed_read_rejects_symlink_escape(use_remote: bool) -> 
     let requested_path = allowed_dir.join("link").join("secret.txt");
     let sandbox = read_only_sandbox(allowed_dir);
     let error = match file_system
-        .read_file(&absolute_path(requested_path.clone()), Some(&sandbox))
+        .read_file(
+            &PathUri::from_abs_path(&absolute_path(requested_path.clone()))?,
+            Some(&sandbox),
+        )
         .await
     {
         Ok(_) => anyhow::bail!("read should be blocked"),
@@ -749,17 +761,19 @@ async fn file_system_sandboxed_read_rejects_symlink_parent_dotdot_escape(
     std::fs::write(&secret_path, "nope")?;
     symlink(&outside_dir, allowed_dir.join("link"))?;
 
-    let requested_path = absolute_path(allowed_dir.join("link").join("..").join("secret.txt"));
+    let requested_path = PathUri::from_abs_path(&absolute_path(
+        allowed_dir.join("link").join("..").join("secret.txt"),
+    ))?;
     let sandbox = read_only_sandbox(allowed_dir);
     let error = match file_system.read_file(&requested_path, Some(&sandbox)).await {
         Ok(_) => anyhow::bail!("read should fail after path normalization"),
         Err(error) => error,
     };
-    // AbsolutePathBuf normalizes `link/../secret.txt` to `allowed/secret.txt`
-    // before the request reaches the filesystem layer. Depending on whether
-    // the platform/runtime resolves that normalized path through a top-level
-    // symlink alias, the request can surface as either "missing file" or an
-    // upfront sandbox rejection.
+    // PathUri's native path constructor normalizes `link/../secret.txt` to
+    // `allowed/secret.txt` before the request reaches the filesystem layer.
+    // Depending on whether the platform/runtime resolves that normalized path
+    // through a top-level symlink alias, the request can surface as either
+    // "missing file" or an upfront sandbox rejection.
     assert_normalized_path_rejected(&error);
 
     Ok(())
