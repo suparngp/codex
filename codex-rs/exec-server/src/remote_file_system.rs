@@ -240,6 +240,10 @@ fn map_remote_error(error: ExecServerError) -> io::Error {
     }
 }
 
+#[cfg(all(test, any(unix, windows)))]
+#[path = "remote_file_system_path_uri_tests.rs"]
+mod path_uri_tests;
+
 #[cfg(test)]
 mod tests {
     use codex_protocol::models::PermissionProfile;
