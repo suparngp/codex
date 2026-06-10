@@ -66,13 +66,21 @@ const SKILL_RESOURCE_URI: &str = "skill://plugin_demo/deploy";
 const SKILL_MAIN_PROMPT_URI: &str = "skill://plugin_demo/deploy/SKILL.md";
 const SKILL_REFERENCE_URI: &str = "skill://plugin_demo/deploy/references/deploy.md";
 const SKILL_MARKER: &str = "BACKEND_SKILL_BODY_MARKER";
-const SKILL_CONTENTS: &str = "---\nname: deploy\ndescription: Deploy through the hosted backend.\n---\n\n# Deploy\n\nBACKEND_SKILL_BODY_MARKER\n";
+const SKILL_CONTENTS: &str = concat!(
+    "---\n",
+    "name: deploy\n",
+    "description: Deploy through the hosted backend.\n",
+    "---\n\n",
+    "# Deploy\n\n",
+    "BACKEND_SKILL_BODY_MARKER\n\n",
+    "Read the [deployment reference](skill://plugin_demo/deploy/references/deploy.md).\n",
+);
 const SKILL_REFERENCE_CONTENTS: &str = "# Deploy reference\n\nUse the hosted deployment API.\n";
 const SKILLS_LIST_CALL_ID: &str = "skills-list";
 const SKILLS_READ_CALL_ID: &str = "skills-read";
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn codex_apps_resources_support_backend_skills_without_an_environment() -> Result<()> {
+async fn backend_skill_can_read_referenced_resource_without_an_executor() -> Result<()> {
     let responses_server = responses::start_mock_server().await;
     let (apps_server_url, apps_server_handle) = start_resource_apps_mcp_server().await?;
 
@@ -221,6 +229,7 @@ stream_max_retries = 0
     assert_eq!(1, skill_fragments.len());
     assert!(skill_fragments[0].contains(&format!("<name>{SKILL_NAME}</name>")));
     assert!(skill_fragments[0].contains(SKILL_MARKER));
+    assert!(skill_fragments[0].contains(SKILL_REFERENCE_URI));
 
     let list_output = requests[1]
         .function_call_output_text(SKILLS_LIST_CALL_ID)
@@ -257,9 +266,70 @@ stream_max_retries = 0
         })
     );
 
+    apps_server_handle.abort();
+    let _ = apps_server_handle.await;
+    Ok(())
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn mcp_resource_read_returns_resource_contents() -> Result<()> {
+    let responses_server = responses::start_mock_server().await;
+    let (apps_server_url, apps_server_handle) = start_resource_apps_mcp_server().await?;
+
+    let codex_home = TempDir::new()?;
+    let responses_server_uri = responses_server.uri();
+    std::fs::write(
+        codex_home.path().join("config.toml"),
+        format!(
+            r#"
+model = "mock-model"
+approval_policy = "untrusted"
+sandbox_mode = "read-only"
+
+model_provider = "mock_provider"
+chatgpt_base_url = "{apps_server_url}"
+mcp_oauth_credentials_store = "file"
+
+[features]
+apps = true
+
+[model_providers.mock_provider]
+name = "Mock provider for test"
+base_url = "{responses_server_uri}/v1"
+wire_api = "responses"
+request_max_retries = 0
+stream_max_retries = 0
+"#
+        ),
+    )?;
+    write_chatgpt_auth(
+        codex_home.path(),
+        ChatGptAuthFixture::new("chatgpt-token")
+            .account_id("account-123")
+            .chatgpt_user_id("user-123")
+            .chatgpt_account_id("account-123"),
+        AuthCredentialsStoreMode::File,
+    )?;
+
+    let mut mcp = TestAppServer::new(codex_home.path()).await?;
+    timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
+
+    let thread_start_id = mcp
+        .send_thread_start_request(ThreadStartParams {
+            model: Some("mock-model".to_string()),
+            ..Default::default()
+        })
+        .await?;
+    let thread_start_resp: JSONRPCResponse = timeout(
+        DEFAULT_READ_TIMEOUT,
+        mcp.read_stream_until_response_message(RequestId::Integer(thread_start_id)),
+    )
+    .await??;
+    let ThreadStartResponse { thread, .. } = to_response(thread_start_resp)?;
+
     let read_request_id = mcp
         .send_mcp_resource_read_request(McpResourceReadParams {
-            thread_id: Some(thread_id),
+            thread_id: Some(thread.id),
             server: "codex_apps".to_string(),
             uri: TEST_RESOURCE_URI.to_string(),
         })
