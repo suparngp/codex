@@ -33,6 +33,7 @@ use codex_protocol::permissions::NetworkSandboxPolicy;
 use codex_sandboxing::policy_transforms::effective_file_system_sandbox_policy;
 use codex_sandboxing::policy_transforms::effective_network_sandbox_policy;
 use codex_utils_absolute_path::AbsolutePathBuf;
+use codex_utils_path_uri::PathUri;
 use pretty_assertions::assert_eq;
 use tempfile::TempDir;
 use test_case::test_case;
@@ -367,32 +368,24 @@ async fn file_system_methods_cover_surface_area(use_remote: bool) -> Result<()> 
 
     let source_link = tmp.path().join("source-link");
     symlink(&source_dir, &source_link)?;
-    let joined_nested = file_system
-        .join(
-            &absolute_path(source_link.clone()),
-            Path::new("nested/note.txt"),
-        )
-        .await
-        .with_context(|| format!("mode={use_remote}"))?;
+    let source_link_uri = PathUri::from_abs_path(&absolute_path(source_link.clone()))?;
+    let joined_nested = source_link_uri.join("nested/note.txt")?;
     assert_eq!(
         joined_nested,
-        absolute_path(source_link.join("nested").join("note.txt"))
+        PathUri::from_abs_path(&absolute_path(source_link.join("nested").join("note.txt")))?
     );
-    let joined_parent = file_system
-        .parent(&joined_nested)
-        .await
-        .with_context(|| format!("mode={use_remote}"))?;
+    let joined_parent = joined_nested.parent();
     assert_eq!(
         joined_parent,
-        Some(absolute_path(source_link.join("nested")))
+        Some(PathUri::from_abs_path(&absolute_path(
+            source_link.join("nested")
+        ))?)
     );
-    let joined_parent_traversal = file_system
-        .join(&absolute_path(source_dir.clone()), Path::new("../outside"))
-        .await
-        .with_context(|| format!("mode={use_remote}"))?;
+    let joined_parent_traversal =
+        PathUri::from_abs_path(&absolute_path(source_dir.clone()))?.join("../outside")?;
     assert_eq!(
         joined_parent_traversal,
-        absolute_path(source_dir.join("../outside"))
+        PathUri::from_abs_path(&absolute_path(source_dir.join("../outside")))?
     );
     let canonical_nested = file_system
         .canonicalize(
