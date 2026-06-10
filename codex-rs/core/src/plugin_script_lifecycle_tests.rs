@@ -1,4 +1,5 @@
 use std::fs;
+use std::path::PathBuf;
 
 use codex_core_skills::SkillMetadata;
 use codex_protocol::protocol::SkillScope;
@@ -6,6 +7,12 @@ use pretty_assertions::assert_eq;
 use tempfile::TempDir;
 
 use super::*;
+
+fn command_path(parts: &[&str]) -> String {
+    let mut path = PathBuf::new();
+    path.extend(parts);
+    path.to_string_lossy().into_owned()
+}
 
 fn fixture() -> (TempDir, AbsolutePathBuf, Vec<FirstPartyPluginRoot>) {
     let temp = tempfile::tempdir().expect("tempdir");
@@ -39,10 +46,11 @@ fn skill_outcome(root: &AbsolutePathBuf) -> SkillLoadOutcome {
 #[test]
 fn resolves_interpreter_script_to_plugin_relative_path_and_skill() {
     let (_temp, root, roots) = fixture();
+    let script = command_path(&["skills", "demo", "scripts", "run.py"]);
     let resolved = resolve_plugin_script(
         &roots,
         &skill_outcome(&root),
-        "python skills/demo/scripts/run.py --secret argument",
+        &format!("python {script} --secret argument"),
         &root,
     )
     .expect("plugin script");
@@ -58,7 +66,8 @@ fn resolves_direct_executable_without_a_known_extension() {
     fs::create_dir_all(root.join("bin")).expect("create bin");
     fs::write(root.join("bin/run"), "#!/bin/sh\n").expect("write executable");
 
-    let resolved = resolve_plugin_script(&roots, &SkillLoadOutcome::default(), "./bin/run", &root)
+    let command = command_path(&[".", "bin", "run"]);
+    let resolved = resolve_plugin_script(&roots, &SkillLoadOutcome::default(), &command, &root)
         .expect("plugin script");
 
     assert_eq!(resolved.script_path, "bin/run");
@@ -112,6 +121,7 @@ fn rejects_compound_shell_commands() {
 }
 
 #[test]
+#[cfg(not(windows))]
 fn resolves_single_script_with_environment_and_redirection() {
     let (_temp, root, roots) = fixture();
     let resolved = resolve_plugin_script(
@@ -145,19 +155,22 @@ fn parses_runner_subcommands_and_option_arguments_without_false_attribution() {
     fs::write(root.join("skills/demo/scripts/run.js"), "console.log('ok')")
         .expect("write node script");
 
+    let run_ts = command_path(&["skills", "demo", "scripts", "run.ts"]);
     let deno = resolve_plugin_script(
         &roots,
         &SkillLoadOutcome::default(),
-        "deno run --allow-read skills/demo/scripts/run.ts",
+        &format!("deno run --allow-read {run_ts}"),
         &root,
     )
     .expect("deno plugin script");
     assert_eq!(deno.script_path, "skills/demo/scripts/run.ts");
 
+    let loader_js = command_path(&["skills", "demo", "scripts", "loader.js"]);
+    let run_js = command_path(&["skills", "demo", "scripts", "run.js"]);
     let node = resolve_plugin_script(
         &roots,
         &SkillLoadOutcome::default(),
-        "node --loader skills/demo/scripts/loader.js skills/demo/scripts/run.js",
+        &format!("node --loader {loader_js} {run_js}"),
         &root,
     )
     .expect("node plugin script");

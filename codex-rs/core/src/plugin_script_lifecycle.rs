@@ -459,7 +459,7 @@ fn split_windows_command(command: &str) -> Option<Vec<String>> {
     (!tokens.is_empty()).then_some(tokens)
 }
 
-#[cfg(any(not(windows), test))]
+#[cfg(not(windows))]
 fn has_unquoted_compound_operator(command: &str) -> bool {
     let mut chars = command.chars().peekable();
     let mut quote = None;
